@@ -1,4 +1,4 @@
-package logger_http_test
+package tripperware_test
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/gol4ng/httpware/v2"
 	"github.com/gol4ng/logger"
+	"github.com/gol4ng/logger-http/tripperware"
 	"github.com/gol4ng/logger/formatter"
 	"github.com/gol4ng/logger/handler"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +33,7 @@ func TestTripperware(t *testing.T) {
 	)
 
 	c := http.Client{
-		Transport: logger_http.Tripperware(myLogger)(http.DefaultTransport),
+		Transport: tripperware.Logger(myLogger)(http.DefaultTransport),
 	}
 
 	ctx := context.Background()
@@ -70,7 +71,7 @@ func TestTripperware_WithError(t *testing.T) {
 	)
 
 	c := http.Client{
-		Transport: logger_http.Tripperware(myLogger)(http.DefaultTransport),
+		Transport: tripperware.Logger(myLogger)(http.DefaultTransport),
 	}
 
 	ctx := context.Background()
@@ -111,7 +112,7 @@ func TestTripperware_WithPanic(t *testing.T) {
 		panic("my transport panic")
 	})
 	c := http.Client{
-		Transport: logger_http.Tripperware(myLogger)(transportPanic),
+		Transport: tripperware.Logger(myLogger)(transportPanic),
 	}
 
 	assert.Panics(t, func() {
@@ -148,7 +149,7 @@ func TestTripperware_WithContext(t *testing.T) {
 	)
 
 	c := http.Client{
-		Transport: logger_http.Tripperware(myLogger, logger_http.WithLoggerContext(func(request *http.Request) *logger.Context {
+		Transport: tripperware.Logger(myLogger, logger_http.WithLoggerContext(func(request *http.Request) *logger.Context {
 			return logger.NewContext().Add("base_context_key", "base_context_value")
 		}))(http.DefaultTransport),
 	}
@@ -190,7 +191,7 @@ func TestTripperware_WithLevels(t *testing.T) {
 	)
 
 	c := http.Client{
-		Transport: logger_http.Tripperware(myLogger, logger_http.WithLevels(func(statusCode int) logger.Level {
+		Transport: tripperware.Logger(myLogger, logger_http.WithLevels(func(statusCode int) logger.Level {
 			return logger.EmergencyLevel
 		}))(http.DefaultTransport),
 	}

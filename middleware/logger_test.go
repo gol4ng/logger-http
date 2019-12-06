@@ -1,14 +1,18 @@
-package logger_http_test
+package middleware_test
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gol4ng/logger"
 	"github.com/gol4ng/logger-http"
+	"github.com/gol4ng/logger-http/middleware"
 	"github.com/gol4ng/logger/formatter"
 	"github.com/gol4ng/logger/handler"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +35,7 @@ func TestMiddleware(t *testing.T) {
 		handler.Stream(output, formatter.NewDefaultFormatter()),
 	)
 
-	logger_http.Middleware(myLogger)(h).ServeHTTP(responseWriter, req)
+	middleware.Logger(myLogger)(h).ServeHTTP(responseWriter, req)
 	output.Constains(t, []string{
 		`<info> http server GET http://127.0.0.1/my-fake-url [status_code:200, duration:`,
 		`content_length:2] {`,
@@ -64,7 +68,7 @@ func TestMiddleware_WithPanic(t *testing.T) {
 	)
 
 	assert.PanicsWithValue(t, "my handler panic", func() {
-		logger_http.Middleware(myLogger)(h).ServeHTTP(responseWriter, req)
+		middleware.Logger(myLogger)(h).ServeHTTP(responseWriter, req)
 	})
 
 	output.Constains(t, []string{
@@ -96,7 +100,7 @@ func TestMiddleware_WithContext(t *testing.T) {
 		handler.Stream(output, formatter.NewDefaultFormatter()),
 	)
 
-	logger_http.Middleware(myLogger, logger_http.WithLoggerContext(func(request *http.Request) *logger.Context {
+	middleware.Logger(myLogger, logger_http.WithLoggerContext(func(request *http.Request) *logger.Context {
 		return logger.NewContext().Add("base_context_key", "base_context_value")
 	}))(h).ServeHTTP(responseWriter, req)
 
@@ -134,7 +138,7 @@ func TestMiddleware_WithLevels(t *testing.T) {
 		handler.Stream(output, formatter.NewDefaultFormatter()),
 	)
 
-	logger_http.Middleware(myLogger, logger_http.WithLevels(func(statusCode int) logger.Level {
+	middleware.Logger(myLogger, logger_http.WithLevels(func(statusCode int) logger.Level {
 		return logger.EmergencyLevel
 	}))(h).ServeHTTP(responseWriter, req)
 
@@ -152,4 +156,17 @@ func TestMiddleware_WithLevels(t *testing.T) {
 		`"http_start_time":"`,
 		`"http_request_deadline":"`,
 	})
+}
+
+type Output struct {
+	bytes.Buffer
+}
+
+func (o *Output) Constains(t *testing.T, str []string) {
+	b := o.String()
+	for _, s := range str {
+		if strings.Contains(b, s) != true {
+			assert.Fail(t, fmt.Sprintf("buffer %s must contain %s\n", b, s))
+		}
+	}
 }

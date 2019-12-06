@@ -8,9 +8,9 @@ import (
 	"github.com/gol4ng/logger"
 )
 
-type options struct {
-	loggerContextProvider LoggerContextProvider
-	levelFunc             CodeToLevel
+type Options struct {
+	LoggerContextProvider LoggerContextProvider
+	LevelFunc             CodeToLevel
 }
 
 // LoggerContextProvider function defines the default logger context values
@@ -20,11 +20,13 @@ type LoggerContextProvider func(*http.Request) *logger.Context
 type CodeToLevel func(statusCode int) logger.Level
 
 var (
-	defaultOptions = &options{
-		loggerContextProvider: func(_ *http.Request) *logger.Context {
-			return nil
+	defaultOptions = &Options{
+		LoggerContextProvider: func(request *http.Request) *logger.Context {
+			return logger.NewContext().
+				Add("http_header", request.Header).
+				Add("http_body", request.GetBody)
 		},
-		levelFunc: func(statusCode int) logger.Level {
+		LevelFunc: func(statusCode int) logger.Level {
 			switch {
 			case statusCode < http.StatusBadRequest:
 				return logger.InfoLevel
@@ -36,8 +38,8 @@ var (
 	}
 )
 
-func evaluateClientOpt(opts ...Option) *options {
-	optCopy := &options{}
+func EvaluateClientOpt(opts ...Option) *Options {
+	optCopy := &Options{}
 	*optCopy = *defaultOptions
 	for _, o := range opts {
 		o(optCopy)
@@ -45,33 +47,42 @@ func evaluateClientOpt(opts ...Option) *options {
 	return optCopy
 }
 
-type Option func(*options)
+func EvaluateServerOpt(opts ...Option) *Options {
+	optCopy := &Options{}
+	*optCopy = *defaultOptions
+	for _, o := range opts {
+		o(optCopy)
+	}
+	return optCopy
+}
+
+type Option func(*Options)
 
 // WithLoggerContext will provide default logger context values
 func WithLoggerContext(f LoggerContextProvider) Option {
-	return func(o *options) {
-		o.loggerContextProvider = f
+	return func(o *Options) {
+		o.LoggerContextProvider = f
 	}
 }
 
 // WithLevels customizes the function for the mapping between http.StatusCode and logger.Level
 func WithLevels(f CodeToLevel) Option {
-	return func(o *options) {
-		o.levelFunc = f
+	return func(o *Options) {
+		o.LevelFunc = f
 	}
 }
 
-func feedContext(baseContext *logger.Context, ctx context.Context, req *http.Request, startTime time.Time) *logger.Context {
-	c := logger.NewContext().
+func FeedContext(loggerContext *logger.Context, ctx context.Context, req *http.Request, startTime time.Time) *logger.Context {
+	if loggerContext == nil {
+		loggerContext = logger.NewContext()
+	}
+	loggerContext.
 		Add("http_method", req.Method).
 		Add("http_url", req.URL.String()).
 		Add("http_start_time", startTime.Format(time.RFC3339))
 
-	if baseContext != nil {
-		c.Merge(*baseContext)
-	}
 	if d, ok := ctx.Deadline(); ok {
-		c.Add("http_request_deadline", d.Format(time.RFC3339))
+		loggerContext.Add("http_request_deadline", d.Format(time.RFC3339))
 	}
-	return c
+	return loggerContext
 }
