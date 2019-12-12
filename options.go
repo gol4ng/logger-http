@@ -19,8 +19,8 @@ type LoggerContextProvider func(*http.Request) *logger.Context
 // CodeToLevel function defines the mapping between http.StatusCode and logger.Level
 type CodeToLevel func(statusCode int) logger.Level
 
-var (
-	defaultOptions = &Options{
+func newDefaultOptions() *Options {
+	return &Options{
 		LoggerContextProvider: func(request *http.Request) *logger.Context {
 			return logger.NewContext().
 				Add("http_header", request.Header).
@@ -36,11 +36,10 @@ var (
 			return logger.ErrorLevel
 		},
 	}
-)
+}
 
 func EvaluateClientOpt(opts ...Option) *Options {
-	optCopy := &Options{}
-	*optCopy = *defaultOptions
+	optCopy := newDefaultOptions()
 	for _, o := range opts {
 		o(optCopy)
 	}
@@ -48,8 +47,7 @@ func EvaluateClientOpt(opts ...Option) *Options {
 }
 
 func EvaluateServerOpt(opts ...Option) *Options {
-	optCopy := &Options{}
-	*optCopy = *defaultOptions
+	optCopy := newDefaultOptions()
 	for _, o := range opts {
 		o(optCopy)
 	}
