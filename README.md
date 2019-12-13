@@ -1,6 +1,7 @@
 # logger-http
 
 [![Build Status](https://travis-ci.org/gol4ng/logger-http.svg?branch=master)](https://travis-ci.org/gol4ng/logger-http)
+[![Go Report Card](https://goreportcard.com/badge/github.com/gol4ng/logger-http)](https://goreportcard.com/report/github.com/gol4ng/logger-http)
 [![GoDoc](https://godoc.org/github.com/gol4ng/logger-http?status.svg)](https://godoc.org/github.com/gol4ng/logger-http)
 
 Gol4ng logger sub package for logging http
