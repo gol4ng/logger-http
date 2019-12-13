@@ -1,6 +1,7 @@
 package tripperware
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gol4ng/httpware/v2"
@@ -8,31 +9,43 @@ import (
 	http_tripperware "github.com/gol4ng/httpware/v2/tripperware"
 	"github.com/gol4ng/logger"
 	"github.com/gol4ng/logger/middleware"
+
+	logger_http "github.com/gol4ng/logger-http"
 )
 
-// CorrelationId will decorate the http.Handler to add support of gol4ng/logger
-func CorrelationId(log logger.WrappableLoggerInterface, options ...correlation_id.Option) httpware.Tripperware {
+// CorrelationId is a decoration of CorrelationId(github.com/gol4ng/httpware/v2/tripperware)
+// it will add correlationId to gol4ng/logger context
+// this tripperware require request context with a WrappableLoggerInterface in order to properly add
+// correlationID to the logger context
+// eg:
+//	stack := httpware.TripperwareStack(
+//		tripperware.InjectLogger(l), // << Inject logger before CorrelationId
+//		tripperware.CorrelationId(),
+//	)
+// OR
+//	ctx := logger.InjectInContext(context.Background(), yourWrappableLogger)
+// 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://a.zz.fr", nil)
+//	http.Client{}.Do(req)
+func CorrelationId(options ...correlation_id.Option) httpware.Tripperware {
+	warning := logger_http.MessageWithFileLine("correlationId need a wrappable logger", 1)
 	config := correlation_id.GetConfig(options...)
 	orig := http_tripperware.CorrelationId(options...)
 	return func(next http.RoundTripper) http.RoundTripper {
 		return orig(httpware.RoundTripFunc(func(req *http.Request) (resp *http.Response, err error) {
 			ctx := req.Context()
-			loggerContextMiddleware := middleware.Context(
-				logger.NewContext().Add(config.HeaderName, ctx.Value(config.HeaderName)),
-			)
-			var decoratedLogger logger.LoggerInterface
 			requestLogger := logger.FromContext(ctx, nil)
+			injected := false
 			if requestLogger != nil {
 				if wrappableLogger, ok := requestLogger.(logger.WrappableLoggerInterface); ok {
-					decoratedLogger = wrappableLogger.Wrap(loggerContextMiddleware)
-				} else {
-					_ = log.Notice("logger not wrappable correlationId not added to request logger", nil)
+					req = req.WithContext(logger.InjectInContext(ctx, wrappableLogger.WrapNew(middleware.Context(
+						logger.NewContext().Add(config.HeaderName, ctx.Value(config.HeaderName)),
+					))))
+					injected = true
 				}
-			} else {
-				decoratedLogger = log.WrapNew(loggerContextMiddleware)
 			}
-			logger.InjectInContext(ctx, decoratedLogger)
-
+			if !injected {
+				fmt.Println(warning)
+			}
 			return next.RoundTrip(req)
 		}))
 	}

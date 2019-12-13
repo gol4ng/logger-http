@@ -11,32 +11,33 @@ import (
 	"time"
 
 	"github.com/gol4ng/logger"
-	"github.com/gol4ng/logger-http"
-	"github.com/gol4ng/logger-http/middleware"
 	"github.com/gol4ng/logger/formatter"
 	"github.com/gol4ng/logger/handler"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/gol4ng/logger-http"
+	"github.com/gol4ng/logger-http/middleware"
 )
 
-func TestMiddleware(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/my-fake-url", nil)
-	ctx, _ := context.WithTimeout(req.Context(), 3*time.Second)
-	req = req.WithContext(ctx)
+func TestLogger(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/my-fake-url", nil)
+	ctx, _ := context.WithTimeout(request.Context(), 3*time.Second)
+	request = request.WithContext(ctx)
 	responseWriter := &httptest.ResponseRecorder{}
 
-	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// not equal because req.WithContext create another request object
-		assert.NotEqual(t, responseWriter, w)
-		w.Write([]byte(`OK`))
+	h := http.HandlerFunc(func(writer http.ResponseWriter, innerRequest *http.Request) {
+		// not equal because request.WithContext create another request object
+		assert.NotEqual(t, responseWriter, writer)
+		writer.Write([]byte(`OK`))
 	})
 
-	output := &Output{}
+	loggerOutput := &Output{}
 	myLogger := logger.NewLogger(
-		handler.Stream(output, formatter.NewDefaultFormatter()),
+		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
 	)
 
-	middleware.Logger(myLogger)(h).ServeHTTP(responseWriter, req)
-	output.Constains(t, []string{
+	middleware.Logger(myLogger)(h).ServeHTTP(responseWriter, request)
+	loggerOutput.Constains(t, []string{
 		`<info> http server GET http://127.0.0.1/my-fake-url [status_code:200, duration:`,
 		`content_length:2] {`,
 		`"http_kind":"server"`,
@@ -52,7 +53,7 @@ func TestMiddleware(t *testing.T) {
 	})
 }
 
-func TestMiddleware_WithPanic(t *testing.T) {
+func TestLogger_WithPanic(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/my-fake-url", nil)
 	ctx, _ := context.WithTimeout(req.Context(), 3*time.Second)
 	req = req.WithContext(ctx)
@@ -83,28 +84,28 @@ func TestMiddleware_WithPanic(t *testing.T) {
 	})
 }
 
-func TestMiddleware_WithContext(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/my-fake-url", nil)
-	ctx, _ := context.WithTimeout(req.Context(), 3*time.Second)
-	req = req.WithContext(ctx)
+func TestLogger_WithContext(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/my-fake-url", nil)
+	ctx, _ := context.WithTimeout(request.Context(), 3*time.Second)
+	request = request.WithContext(ctx)
 	responseWriter := &httptest.ResponseRecorder{}
 
-	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// not equal because req.WithContext create another request object
-		assert.NotEqual(t, responseWriter, w)
-		w.Write([]byte(`OK`))
+	h := http.HandlerFunc(func(writer http.ResponseWriter, innerRequest *http.Request) {
+		// not equal because request.WithContext create another request object
+		assert.NotEqual(t, responseWriter, writer)
+		writer.Write([]byte(`OK`))
 	})
 
-	output := &Output{}
+	loggerOutput := &Output{}
 	myLogger := logger.NewLogger(
-		handler.Stream(output, formatter.NewDefaultFormatter()),
+		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
 	)
 
 	middleware.Logger(myLogger, logger_http.WithLoggerContext(func(request *http.Request) *logger.Context {
 		return logger.NewContext().Add("base_context_key", "base_context_value")
-	}))(h).ServeHTTP(responseWriter, req)
+	}))(h).ServeHTTP(responseWriter, request)
 
-	output.Constains(t, []string{
+	loggerOutput.Constains(t, []string{
 		`<info> http server GET http://127.0.0.1/my-fake-url [status_code:200, duration:`,
 		`content_length:2] {`,
 		`"http_kind":"server"`,
@@ -121,28 +122,28 @@ func TestMiddleware_WithContext(t *testing.T) {
 	})
 }
 
-func TestMiddleware_WithLevels(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/my-fake-url", nil)
-	ctx, _ := context.WithTimeout(req.Context(), 3*time.Second)
-	req = req.WithContext(ctx)
+func TestLogger_WithLevels(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/my-fake-url", nil)
+	ctx, _ := context.WithTimeout(request.Context(), 3*time.Second)
+	request = request.WithContext(ctx)
 	responseWriter := &httptest.ResponseRecorder{}
 
-	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// not equal because req.WithContext create another request object
-		assert.NotEqual(t, responseWriter, w)
-		w.Write([]byte(`OK`))
+	h := http.HandlerFunc(func(writer http.ResponseWriter, innerRequest *http.Request) {
+		// not equal because request.WithContext create another request object
+		assert.NotEqual(t, responseWriter, writer)
+		writer.Write([]byte(`OK`))
 	})
 
-	output := &Output{}
+	loggerOutput := &Output{}
 	myLogger := logger.NewLogger(
-		handler.Stream(output, formatter.NewDefaultFormatter()),
+		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
 	)
 
 	middleware.Logger(myLogger, logger_http.WithLevels(func(statusCode int) logger.Level {
 		return logger.EmergencyLevel
-	}))(h).ServeHTTP(responseWriter, req)
+	}))(h).ServeHTTP(responseWriter, request)
 
-	output.Constains(t, []string{
+	loggerOutput.Constains(t, []string{
 		`<emergency> http server GET http://127.0.0.1/my-fake-url [status_code:200, duration:`,
 		`content_length:2] {`,
 		`"http_kind":"server"`,

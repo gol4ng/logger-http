@@ -22,9 +22,7 @@ type CodeToLevel func(statusCode int) logger.Level
 func newDefaultOptions() *Options {
 	return &Options{
 		LoggerContextProvider: func(request *http.Request) *logger.Context {
-			return logger.NewContext().
-				Add("http_header", request.Header).
-				Add("http_body", request.GetBody)
+			return logger.NewContext().Add("http_header", request.Header)
 		},
 		LevelFunc: func(statusCode int) logger.Level {
 			switch {
@@ -40,6 +38,15 @@ func newDefaultOptions() *Options {
 
 func EvaluateClientOpt(opts ...Option) *Options {
 	optCopy := newDefaultOptions()
+	baseOptCopy := optCopy.LoggerContextProvider
+	optCopy.LoggerContextProvider = func(request *http.Request) *logger.Context {
+		ctx := baseOptCopy(request)
+		// TODO
+		//if reader, err := request.GetBody(); err == nil {
+		//	ctx.Add("http_body", reader.Read())
+		//}
+		return ctx
+	}
 	for _, o := range opts {
 		o(optCopy)
 	}

@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/gol4ng/httpware/v2"
 	"github.com/gol4ng/logger"
-	"github.com/gol4ng/logger-http/tripperware"
 	"github.com/gol4ng/logger/formatter"
 	"github.com/gol4ng/logger/handler"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/gol4ng/logger-http"
+	"github.com/gol4ng/logger-http/tripperware"
 )
 
 func TestTripperware(t *testing.T) {
@@ -27,9 +27,9 @@ func TestTripperware(t *testing.T) {
 	}))
 	defer server.Close()
 
-	output := &Output{}
+	loggerOutput := &Output{}
 	myLogger := logger.NewLogger(
-		handler.Stream(output, formatter.NewDefaultFormatter()),
+		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
 	)
 
 	c := http.Client{
@@ -38,11 +38,11 @@ func TestTripperware(t *testing.T) {
 
 	ctx := context.Background()
 	ctx, _ = context.WithTimeout(ctx, 3*time.Second)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/my-fake-url", nil)
+	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/my-fake-url", nil)
 
-	_, err := c.Do(req)
+	_, err := c.Do(request)
 	assert.Nil(t, err)
-	output.Constains(t, []string{
+	loggerOutput.Constains(t, []string{
 		`<info> http client GET http://127.0.0.1`,
 		`/my-fake-url [status_code:200, duration:`,
 		`content_length:2] {`,
@@ -65,9 +65,9 @@ func TestTripperware_WithError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	output := &Output{}
+	loggerOutput := &Output{}
 	myLogger := logger.NewLogger(
-		handler.Stream(output, formatter.NewDefaultFormatter()),
+		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
 	)
 
 	c := http.Client{
@@ -76,11 +76,11 @@ func TestTripperware_WithError(t *testing.T) {
 
 	ctx := context.Background()
 	ctx, _ = context.WithTimeout(ctx, 3*time.Second)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://a.zz/my-fake-url", nil)
+	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://a.zz/my-fake-url", nil)
 
-	_, err := c.Do(req)
+	_, err := c.Do(request)
 	assert.Contains(t, err.Error(), "no such host")
-	output.Constains(t, []string{
+	loggerOutput.Constains(t, []string{
 		`<error> http client error GET http://a.zz/my-fake-url [duration:`,
 		`dial tcp: lookup a.zz`,
 		`no such host`,
@@ -103,9 +103,9 @@ func TestTripperware_WithPanic(t *testing.T) {
 	}))
 	defer server.Close()
 
-	output := &Output{}
+	loggerOutput := &Output{}
 	myLogger := logger.NewLogger(
-		handler.Stream(output, formatter.NewDefaultFormatter()),
+		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
 	)
 
 	transportPanic := httpware.RoundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -118,12 +118,12 @@ func TestTripperware_WithPanic(t *testing.T) {
 	assert.Panics(t, func() {
 		ctx := context.Background()
 		ctx, _ = context.WithTimeout(ctx, 3*time.Second)
-		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://a.zz/my-fake-url", nil)
+		request, _ := http.NewRequestWithContext(ctx, http.MethodGet, "http://a.zz/my-fake-url", nil)
 
-		c.Do(req)
+		c.Do(request)
 	})
 
-	output.Constains(t, []string{
+	loggerOutput.Constains(t, []string{
 		`<critical> http client panic GET http://a.zz/my-fake-url [duration:`,
 		`"http_kind":"client"`,
 		`"http_method":"GET"`,
@@ -143,9 +143,9 @@ func TestTripperware_WithContext(t *testing.T) {
 	}))
 	defer server.Close()
 
-	output := &Output{}
+	loggerOutput := &Output{}
 	myLogger := logger.NewLogger(
-		handler.Stream(output, formatter.NewDefaultFormatter()),
+		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
 	)
 
 	c := http.Client{
@@ -156,11 +156,11 @@ func TestTripperware_WithContext(t *testing.T) {
 
 	ctx := context.Background()
 	ctx, _ = context.WithTimeout(ctx, 3*time.Second)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/my-fake-url", nil)
+	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/my-fake-url", nil)
 
-	_, err := c.Do(req)
+	_, err := c.Do(request)
 	assert.Nil(t, err)
-	output.Constains(t, []string{
+	loggerOutput.Constains(t, []string{
 		`<info> http client GET http://127.0.0.1`,
 		`/my-fake-url [status_code:200, duration:`,
 		`content_length:2] {`,
@@ -185,9 +185,9 @@ func TestTripperware_WithLevels(t *testing.T) {
 	}))
 	defer server.Close()
 
-	output := &Output{}
+	loggerOutput := &Output{}
 	myLogger := logger.NewLogger(
-		handler.Stream(output, formatter.NewDefaultFormatter()),
+		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
 	)
 
 	c := http.Client{
@@ -198,11 +198,11 @@ func TestTripperware_WithLevels(t *testing.T) {
 
 	ctx := context.Background()
 	ctx, _ = context.WithTimeout(ctx, 3*time.Second)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/my-fake-url", nil)
+	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/my-fake-url", nil)
 
-	_, err := c.Do(req)
+	_, err := c.Do(request)
 	assert.Nil(t, err)
-	output.Constains(t, []string{
+	loggerOutput.Constains(t, []string{
 		`<emergency> http client GET http://127.0.0.1`,
 		`/my-fake-url [status_code:200, duration:`,
 		`content_length:2] {`,

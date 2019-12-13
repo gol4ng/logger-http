@@ -7,10 +7,11 @@ import (
 
 	"github.com/gol4ng/httpware/v2"
 	"github.com/gol4ng/logger"
+
 	"github.com/gol4ng/logger-http"
 )
 
-// Tripperware will decorate the http.Client Transport to add support of gol4ng/logger
+// Logger will decorate the http.Client to add support of gol4ng/logger
 func Logger(log logger.LoggerInterface, opts ...logger_http.Option) func(next http.RoundTripper) http.RoundTripper {
 	o := logger_http.EvaluateClientOpt(opts...)
 	return func(next http.RoundTripper) http.RoundTripper {

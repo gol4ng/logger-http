@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"github.com/gol4ng/httpware/v2"
-	middleware2 "github.com/gol4ng/httpware/v2/middleware"
+	http_middleware "github.com/gol4ng/httpware/v2/middleware"
 	"github.com/gol4ng/logger"
+
 	"github.com/gol4ng/logger-http"
 )
 
+// Logger will decorate the http.Handler to add support of gol4ng/logger
 func Logger(log logger.LoggerInterface, opts ...logger_http.Option) httpware.Middleware {
 	o := logger_http.EvaluateServerOpt(opts...)
 	return func(next http.Handler) http.Handler {
@@ -21,7 +23,7 @@ func Logger(log logger.LoggerInterface, opts ...logger_http.Option) httpware.Mid
 			currentLogger := logger.FromContext(ctx, log)
 			currentLoggerContext := logger_http.FeedContext(o.LoggerContextProvider(req), ctx, req, startTime).Add("http_kind", "server")
 
-			writerInterceptor := middleware2.NewResponseWriterInterceptor(writer)
+			writerInterceptor := http_middleware.NewResponseWriterInterceptor(writer)
 			defer func() {
 				duration := time.Since(startTime)
 				currentLoggerContext.Add("http_duration", duration.Seconds())
