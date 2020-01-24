@@ -2,11 +2,13 @@ package tripperware_test
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/gol4ng/logger"
 	"github.com/gol4ng/logger/formatter"
 	"github.com/gol4ng/logger/handler"
+	testing_logger "github.com/gol4ng/logger/testing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
@@ -27,10 +30,7 @@ func TestCorrelationId(t *testing.T) {
 		rand.New(correlation_id.NewLockedSource(rand.NewSource(1))),
 	)
 
-	loggerOutput := &Output{}
-	myLogger := logger.NewLogger(
-		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
-	)
+	myLogger, store := testing_logger.NewLogger()
 
 	roundTripperMock := &mocks.RoundTripper{}
 	request := httptest.NewRequest(http.MethodPost, "http://fake-addr", nil)
@@ -47,22 +47,35 @@ func TestCorrelationId(t *testing.T) {
 		assert.NotEqual(t, request, innerRequest)
 		assert.Equal(t, "p1LGIehp1s", innerRequest.Header.Get(correlation_id.HeaderName))
 		handlerReq = innerRequest
-		logger.FromContext(innerRequest.Context(), nil).Info("handler info log", nil)
+		_ = logger.FromContext(innerRequest.Context(), nil).Info("handler info log", nil)
 	})
 
-	myLogger.Info("info log before request", logger.NewContext().Add("ctxvalue", "before"))
+	_ = myLogger.Info("info log before request", logger.NewContext().Add("ctxvalue", "before"))
 	resultResponse, err := tripperware.CorrelationId()(roundTripperMock).RoundTrip(request)
-	myLogger.Info("info log after request", logger.NewContext().Add("ctxvalue", "after"))
+	_ = myLogger.Info("info log after request", logger.NewContext().Add("ctxvalue", "after"))
 
 	assert.Nil(t, err)
 	assert.Equal(t, response, resultResponse)
 	assert.Equal(t, "p1LGIehp1s", handlerReq.Header.Get(correlation_id.HeaderName))
 	assert.Equal(t, "", response.Header.Get(correlation_id.HeaderName))
-	loggerOutput.Constains(t, []string{
-		`<info> info log before request {"ctxvalue":"before"}`,
-		`<info> handler info log {"Correlation-Id":"p1LGIehp1s"}`,
-		`<info> info log after request {"ctxvalue":"after"}`,
-	})
+
+	entries := store.GetEntries()
+	assert.Len(t, entries, 3)
+
+	entry1 := entries[0]
+	entry1Ctx := *entry1.Context
+	assert.Equal(t, "before", entry1Ctx["ctxvalue"].Value)
+	assert.Equal(t, "info log before request", entry1.Message)
+
+	entry2 := entries[1]
+	entry2Ctx := *entry2.Context
+	assert.Equal(t, "p1LGIehp1s", entry2Ctx[correlation_id.HeaderName].Value)
+	assert.Equal(t, "handler info log", entry2.Message)
+
+	entry3 := entries[2]
+	entry3Ctx := *entry3.Context
+	assert.Equal(t, "after", entry3Ctx["ctxvalue"].Value)
+	assert.Equal(t, "info log after request", entry3.Message)
 }
 
 func TestCorrelationId_WithoutWrappableLogger(t *testing.T) {
@@ -70,10 +83,7 @@ func TestCorrelationId_WithoutWrappableLogger(t *testing.T) {
 		rand.New(correlation_id.NewLockedSource(rand.NewSource(1))),
 	)
 
-	loggerOutput := &Output{}
-	myLogger := logger.NewLogger(
-		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
-	)
+	myLogger, store := testing_logger.NewLogger()
 
 	roundTripperMock := &mocks.RoundTripper{}
 	request := httptest.NewRequest(http.MethodPost, "http://fake-addr", nil)
@@ -96,11 +106,11 @@ func TestCorrelationId_WithoutWrappableLogger(t *testing.T) {
 
 	var resultResponse *http.Response
 	var err error
-	myLogger.Info("info log before request", logger.NewContext().Add("ctxvalue", "before"))
+	_ = myLogger.Info("info log before request", logger.NewContext().Add("ctxvalue", "before"))
 	output := getStdout(func() {
 		resultResponse, err = tripperware.CorrelationId()(roundTripperMock).RoundTrip(request)
 	})
-	myLogger.Info("info log after request", logger.NewContext().Add("ctxvalue", "after"))
+	_ = myLogger.Info("info log after request", logger.NewContext().Add("ctxvalue", "after"))
 
 	assert.Nil(t, err)
 	assert.Equal(t, response, resultResponse)
@@ -109,10 +119,18 @@ func TestCorrelationId_WithoutWrappableLogger(t *testing.T) {
 	assert.Contains(t, output, "correlationId need a wrappable logger /")
 	assert.Contains(t, output, "/src/github.com/gol4ng/logger-http/tripperware/correlation_id_test.go")
 
-	loggerOutput.Constains(t, []string{
-		`<info> info log before request {"ctxvalue":"before"}`,
-		`<info> info log after request {"ctxvalue":"after"}`,
-	})
+	entries := store.GetEntries()
+	assert.Len(t, entries, 2)
+
+	entry1 := entries[0]
+	entry1Ctx := *entry1.Context
+	assert.Equal(t, "before", entry1Ctx["ctxvalue"].Value)
+	assert.Equal(t, "info log before request", entry1.Message)
+
+	entry2 := entries[1]
+	entry2Ctx := *entry2.Context
+	assert.Equal(t, "after", entry2Ctx["ctxvalue"].Value)
+	assert.Equal(t, "info log after request", entry2.Message)
 }
 
 // Use to get os.Stdout
@@ -175,4 +193,17 @@ func ExampleCorrelationId() {
 
 	c.Get("http://google.com")
 	// Output:
+}
+
+type Output struct {
+	bytes.Buffer
+}
+
+func (o *Output) Constains(t *testing.T, str []string) {
+	b := o.String()
+	for _, s := range str {
+		if strings.Contains(b, s) != true {
+			assert.Fail(t, fmt.Sprintf("buffer %s must contain %s\n", b, s))
+		}
+	}
 }
