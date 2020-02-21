@@ -41,12 +41,12 @@ func TestCorrelationId(t *testing.T) {
 		assert.NotEqual(t, request, innerRequest)
 		assert.Equal(t, "p1LGIehp1s", innerRequest.Header.Get(correlation_id.HeaderName))
 		handlerRequest = innerRequest
-		logger.FromContext(innerRequest.Context(), nil).Info("handler info log", nil)
+		logger.FromContext(innerRequest.Context(), nil).Info("handler info log")
 	})
 
-	myLogger.Info("info log before request", logger.NewContext().Add("ctxvalue", "before"))
+	myLogger.Info("info log before request", logger.String("ctxvalue", "before"))
 	http_middleware.CorrelationId()(h).ServeHTTP(responseWriter, request)
-	myLogger.Info("info log after request", logger.NewContext().Add("ctxvalue", "after"))
+	myLogger.Info("info log after request", logger.String("ctxvalue", "after"))
 
 	respHeaderValue := responseWriter.Header().Get(correlation_id.HeaderName)
 	reqContextValue := handlerRequest.Context().Value(correlation_id.HeaderName).(string)
@@ -85,11 +85,11 @@ func TestCorrelationId_WithoutWrappableLogger(t *testing.T) {
 		assert.Nil(t, logger.FromContext(innerRequest.Context(), nil))
 	})
 
-	myLogger.Info("info log before request", logger.NewContext().Add("ctxvalue", "before"))
+	myLogger.Info("info log before request", logger.String("ctxvalue", "before"))
 	output := getStdout(func() {
 		http_middleware.CorrelationId()(h).ServeHTTP(responseRecorder, request)
 	})
-	myLogger.Info("info log after request", logger.NewContext().Add("ctxvalue", "after"))
+	myLogger.Info("info log after request", logger.String("ctxvalue", "after"))
 
 	respHeaderValue := responseRecorder.Header().Get(correlation_id.HeaderName)
 	reqContextValue := handlerRequest.Context().Value(correlation_id.HeaderName).(string)
@@ -164,7 +164,7 @@ func ExampleCorrelationId() {
 
 	h := http.HandlerFunc(func(writer http.ResponseWriter, innerRequest *http.Request) {
 		l := logger.FromContext(innerRequest.Context(), myLogger)
-		l.Info("handler log info", nil)
+		l.Info("handler log info")
 	})
 
 	go func() {

@@ -28,7 +28,7 @@ func Logger(log logger.LoggerInterface, opts ...logger_http.Option) func(next ht
 
 				if err := recover(); err != nil {
 					currentLoggerContext.Add("http_panic", err)
-					_ = currentLogger.Critical(fmt.Sprintf("http client panic %s %s [duration:%s]", req.Method, req.URL, duration), currentLoggerContext)
+					currentLogger.Critical(fmt.Sprintf("http client panic %s %s [duration:%s]", req.Method, req.URL, duration), *currentLoggerContext.Slice()...)
 					panic(err)
 				}
 				if err != nil {
@@ -36,24 +36,24 @@ func Logger(log logger.LoggerInterface, opts ...logger_http.Option) func(next ht
 					currentLoggerContext.Add("http_error_message", err.Error())
 				}
 				if resp == nil {
-					_ = currentLogger.Error(fmt.Sprintf("http client error %s %s [duration:%s] %s", req.Method, req.URL, duration, err), currentLoggerContext)
+					currentLogger.Error(fmt.Sprintf("http client error %s %s [duration:%s] %s", req.Method, req.URL, duration, err), *currentLoggerContext.Slice()...)
 					return
 				}
 				currentLoggerContext.Add("http_status", resp.Status).
 					Add("http_status_code", resp.StatusCode).
 					Add("http_response_length", resp.ContentLength)
 
-				_ = currentLogger.Log(
+				currentLogger.Log(
 					fmt.Sprintf(
 						"http client %s %s [status_code:%d, duration:%s, content_length:%d]",
 						req.Method, req.URL, resp.StatusCode, duration, resp.ContentLength,
 					),
 					o.LevelFunc(resp.StatusCode),
-					currentLoggerContext,
+					*currentLoggerContext.Slice()...,
 				)
 			}()
 
-			_ = currentLogger.Debug(fmt.Sprintf("http client gonna %s %s", req.Method, req.URL), currentLoggerContext)
+			currentLogger.Debug(fmt.Sprintf("http client gonna %s %s", req.Method, req.URL), *currentLoggerContext.Slice()...)
 			return next.RoundTrip(req)
 		})
 	}

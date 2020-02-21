@@ -47,12 +47,12 @@ func TestCorrelationId(t *testing.T) {
 		assert.NotEqual(t, request, innerRequest)
 		assert.Equal(t, "p1LGIehp1s", innerRequest.Header.Get(correlation_id.HeaderName))
 		handlerReq = innerRequest
-		logger.FromContext(innerRequest.Context(), nil).Info("handler info log", nil)
+		logger.FromContext(innerRequest.Context(), nil).Info("handler info log")
 	})
 
-	myLogger.Info("info log before request", logger.NewContext().Add("ctxvalue", "before"))
+	myLogger.Info("info log before request", logger.String("ctxvalue", "before"))
 	resultResponse, err := tripperware.CorrelationId()(roundTripperMock).RoundTrip(request)
-	myLogger.Info("info log after request", logger.NewContext().Add("ctxvalue", "after"))
+	myLogger.Info("info log after request", logger.String("ctxvalue", "after"))
 
 	assert.Nil(t, err)
 	assert.Equal(t, response, resultResponse)
@@ -96,11 +96,11 @@ func TestCorrelationId_WithoutWrappableLogger(t *testing.T) {
 
 	var resultResponse *http.Response
 	var err error
-	myLogger.Info("info log before request", logger.NewContext().Add("ctxvalue", "before"))
+	myLogger.Info("info log before request", logger.String("ctxvalue", "before"))
 	output := getStdout(func() {
 		resultResponse, err = tripperware.CorrelationId()(roundTripperMock).RoundTrip(request)
 	})
-	myLogger.Info("info log after request", logger.NewContext().Add("ctxvalue", "after"))
+	myLogger.Info("info log after request", logger.String("ctxvalue", "after"))
 
 	assert.Nil(t, err)
 	assert.Equal(t, response, resultResponse)
