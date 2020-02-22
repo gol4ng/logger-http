@@ -1,18 +1,14 @@
 package middleware_test
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/gol4ng/logger"
-	"github.com/gol4ng/logger/formatter"
-	"github.com/gol4ng/logger/handler"
+	testing_logger "github.com/gol4ng/logger/testing"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/gol4ng/logger-http"
@@ -31,26 +27,29 @@ func TestLogger(t *testing.T) {
 		writer.Write([]byte(`OK`))
 	})
 
-	loggerOutput := &Output{}
-	myLogger := logger.NewLogger(
-		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
-	)
+	myLogger, store := testing_logger.NewLogger()
 
 	middleware.Logger(myLogger)(h).ServeHTTP(responseWriter, request)
-	loggerOutput.Constains(t, []string{
-		`<info> http server GET http://127.0.0.1/my-fake-url [status_code:200, duration:`,
-		`content_length:2] {`,
-		`"http_kind":"server"`,
-		`"http_method":"GET"`,
-		`"http_response_length":2`,
-		`"http_status":"OK"`,
-		`"http_status_code":200`,
 
-		`"http_url":"http://127.0.0.1`,
-		`"http_duration":`,
-		`"http_start_time":"`,
-		`"http_request_deadline":"`,
-	})
+	entries := store.GetEntries()
+	assert.Len(t, entries, 2)
+
+	entry1 := entries[0]
+	AssertDefaultContextFields(t, entry1)
+	assert.Equal(t, logger.DebugLevel, entry1.Level)
+	assert.Equal(t, `http server received GET http://127.0.0.1/my-fake-url`, entry1.Message)
+	assert.Equal(t, "GET", (*entry1.Context)["http_method"].Value)
+
+	entry2 := entries[1]
+	AssertDefaultContextFields(t, entry2)
+	assert.Equal(t, logger.InfoLevel, entry2.Level)
+	assert.Contains(t, entry2.Message, `http server GET http://127.0.0.1/my-fake-url [status_code:200, duration:`)
+	assert.Contains(t, entry2.Message, `content_length:2]`)
+	assert.Equal(t, "http://127.0.0.1/my-fake-url", (*entry2.Context)["http_url"].Value)
+	assert.Equal(t, int64(2), (*entry2.Context)["http_response_length"].Value)
+	assert.Equal(t, "OK", (*entry2.Context)["http_status"].Value)
+	assert.Equal(t, int64(200), (*entry2.Context)["http_status_code"].Value)
+	assert.Contains(t, *entry2.Context, "http_duration")
 }
 
 func TestLogger_WithPanic(t *testing.T) {
@@ -63,25 +62,29 @@ func TestLogger_WithPanic(t *testing.T) {
 		panic("my handler panic")
 	})
 
-	output := &Output{}
-	myLogger := logger.NewLogger(
-		handler.Stream(output, formatter.NewDefaultFormatter()),
-	)
+	myLogger, store := testing_logger.NewLogger()
 
 	assert.PanicsWithValue(t, "my handler panic", func() {
 		middleware.Logger(myLogger)(h).ServeHTTP(responseWriter, req)
 	})
 
-	output.Constains(t, []string{
-		`<critical> http server panic GET http://127.0.0.1/my-fake-url [duration:`,
-		`"http_kind":"server"`,
-		`"http_method":"GET"`,
+	entries := store.GetEntries()
+	assert.Len(t, entries, 2)
 
-		`"http_url":"http://127.0.0.1`,
-		`"http_duration":`,
-		`"http_start_time":"`,
-		`"http_request_deadline":"`,
-	})
+	entry1 := entries[0]
+	AssertDefaultContextFields(t, entry1)
+	assert.Equal(t, logger.DebugLevel, entry1.Level)
+	assert.Equal(t, `http server received GET http://127.0.0.1/my-fake-url`, entry1.Message)
+	assert.Equal(t, "GET", (*entry1.Context)["http_method"].Value)
+
+	entry2 := entries[1]
+	AssertDefaultContextFields(t, entry2)
+	assert.Equal(t, logger.CriticalLevel, entry2.Level)
+	assert.Contains(t, entry2.Message, `http server panic GET http://127.0.0.1/my-fake-url [duration:`)
+	assert.Equal(t, "GET", (*entry2.Context)["http_method"].Value)
+	assert.Equal(t, "http://127.0.0.1/my-fake-url", (*entry2.Context)["http_url"].Value)
+
+	assert.Contains(t, *entry2.Context, `http_panic`)
 }
 
 func TestLogger_WithContext(t *testing.T) {
@@ -96,30 +99,33 @@ func TestLogger_WithContext(t *testing.T) {
 		writer.Write([]byte(`OK`))
 	})
 
-	loggerOutput := &Output{}
-	myLogger := logger.NewLogger(
-		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
-	)
+	myLogger, store := testing_logger.NewLogger()
 
 	middleware.Logger(myLogger, logger_http.WithLoggerContext(func(request *http.Request) *logger.Context {
 		return logger.NewContext().Add("base_context_key", "base_context_value")
 	}))(h).ServeHTTP(responseWriter, request)
 
-	loggerOutput.Constains(t, []string{
-		`<info> http server GET http://127.0.0.1/my-fake-url [status_code:200, duration:`,
-		`content_length:2] {`,
-		`"http_kind":"server"`,
-		`"http_method":"GET"`,
-		`"http_response_length":2`,
-		`"http_status":"OK"`,
-		`"http_status_code":200`,
-		`"base_context_key":"base_context_value"`,
+	entries := store.GetEntries()
+	assert.Len(t, entries, 2)
 
-		`"http_url":"http://127.0.0.1`,
-		`"http_duration":`,
-		`"http_start_time":"`,
-		`"http_request_deadline":"`,
-	})
+	entry1 := entries[0]
+	assert.Equal(t, "base_context_value", (*entry1.Context)["base_context_key"].Value)
+	AssertDefaultContextFields(t, entry1)
+	assert.Equal(t, logger.DebugLevel, entry1.Level)
+	assert.Equal(t, `http server received GET http://127.0.0.1/my-fake-url`, entry1.Message)
+	assert.Equal(t, "GET", (*entry1.Context)["http_method"].Value)
+
+	entry2 := entries[1]
+	assert.Equal(t, "base_context_value", (*entry2.Context)["base_context_key"].Value)
+	AssertDefaultContextFields(t, entry2)
+	assert.Equal(t, logger.InfoLevel, entry2.Level)
+	assert.Contains(t, entry2.Message, `http server GET http://127.0.0.1/my-fake-url [status_code:200, duration:`)
+	assert.Contains(t, entry2.Message, `content_length:2]`)
+	assert.Equal(t, "http://127.0.0.1/my-fake-url", (*entry2.Context)["http_url"].Value)
+	assert.Equal(t, int64(2), (*entry2.Context)["http_response_length"].Value)
+	assert.Equal(t, "OK", (*entry2.Context)["http_status"].Value)
+	assert.Equal(t, int64(200), (*entry2.Context)["http_status_code"].Value)
+	assert.Contains(t, *entry2.Context, "http_duration")
 }
 
 func TestLogger_WithLevels(t *testing.T) {
@@ -134,40 +140,37 @@ func TestLogger_WithLevels(t *testing.T) {
 		writer.Write([]byte(`OK`))
 	})
 
-	loggerOutput := &Output{}
-	myLogger := logger.NewLogger(
-		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
-	)
+	myLogger, store := testing_logger.NewLogger()
 
 	middleware.Logger(myLogger, logger_http.WithLevels(func(statusCode int) logger.Level {
 		return logger.EmergencyLevel
 	}))(h).ServeHTTP(responseWriter, request)
 
-	loggerOutput.Constains(t, []string{
-		`<emergency> http server GET http://127.0.0.1/my-fake-url [status_code:200, duration:`,
-		`content_length:2] {`,
-		`"http_kind":"server"`,
-		`"http_method":"GET"`,
-		`"http_response_length":2`,
-		`"http_status":"OK"`,
-		`"http_status_code":200`,
+	entries := store.GetEntries()
+	assert.Len(t, entries, 2)
 
-		`"http_url":"http://127.0.0.1`,
-		`"http_duration":`,
-		`"http_start_time":"`,
-		`"http_request_deadline":"`,
-	})
+	entry1 := entries[0]
+	AssertDefaultContextFields(t, entry1)
+	assert.Equal(t, logger.DebugLevel, entry1.Level)
+	assert.Equal(t, `http server received GET http://127.0.0.1/my-fake-url`, entry1.Message)
+	assert.Equal(t, "GET", (*entry1.Context)["http_method"].Value)
+
+	entry2 := entries[1]
+	AssertDefaultContextFields(t, entry2)
+	assert.Equal(t, logger.EmergencyLevel, entry2.Level)
+	assert.Contains(t, entry2.Message, `http server GET http://127.0.0.1/my-fake-url [status_code:200, duration:`)
+	assert.Contains(t, entry2.Message, `content_length:2]`)
+	assert.Equal(t, "http://127.0.0.1/my-fake-url", (*entry2.Context)["http_url"].Value)
+	assert.Equal(t, int64(2), (*entry2.Context)["http_response_length"].Value)
+	assert.Equal(t, "OK", (*entry2.Context)["http_status"].Value)
+	assert.Equal(t, int64(200), (*entry2.Context)["http_status_code"].Value)
+	assert.Contains(t, *entry2.Context, "http_duration")
 }
 
-type Output struct {
-	bytes.Buffer
-}
-
-func (o *Output) Constains(t *testing.T, str []string) {
-	b := o.String()
-	for _, s := range str {
-		if strings.Contains(b, s) != true {
-			assert.Fail(t, fmt.Sprintf("buffer %s must contain %s\n", b, s))
-		}
-	}
+func AssertDefaultContextFields(t *testing.T, entry logger.Entry) {
+	assert.Equal(t, "server", (*entry.Context)["http_kind"].Value)
+	assert.Contains(t, *entry.Context, "http_method")
+	assert.Contains(t, *entry.Context, "http_url")
+	assert.Contains(t, *entry.Context, "http_start_time")
+	assert.Contains(t, *entry.Context, "http_request_deadline")
 }

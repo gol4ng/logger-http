@@ -30,7 +30,7 @@ func Logger(log logger.LoggerInterface, opts ...logger_http.Option) httpware.Mid
 
 				if err := recover(); err != nil {
 					currentLoggerContext.Add("http_panic", err)
-					_ = currentLogger.Critical(fmt.Sprintf("http server panic %s %s [duration:%s]", req.Method, req.URL, duration), currentLoggerContext)
+					currentLogger.Critical(fmt.Sprintf("http server panic %s %s [duration:%s]", req.Method, req.URL, duration), *currentLoggerContext.Slice()...)
 					panic(err)
 				}
 
@@ -38,17 +38,17 @@ func Logger(log logger.LoggerInterface, opts ...logger_http.Option) httpware.Mid
 					Add("http_status_code", writerInterceptor.StatusCode).
 					Add("http_response_length", len(writerInterceptor.Body))
 
-				_ = currentLogger.Log(
+				currentLogger.Log(
 					fmt.Sprintf(
 						"http server %s %s [status_code:%d, duration:%s, content_length:%d]",
 						req.Method, req.URL, writerInterceptor.StatusCode, duration, len(writerInterceptor.Body),
 					),
 					o.LevelFunc(writerInterceptor.StatusCode),
-					currentLoggerContext,
+					*currentLoggerContext.Slice()...,
 				)
 			}()
 
-			_ = currentLogger.Debug(fmt.Sprintf("http server received %s %s", req.Method, req.URL), currentLoggerContext)
+			currentLogger.Debug(fmt.Sprintf("http server received %s %s", req.Method, req.URL), *currentLoggerContext.Slice()...)
 			next.ServeHTTP(writerInterceptor, req)
 		})
 	}

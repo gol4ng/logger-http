@@ -16,6 +16,7 @@ import (
 	"github.com/gol4ng/logger"
 	"github.com/gol4ng/logger/formatter"
 	"github.com/gol4ng/logger/handler"
+	testing_logger "github.com/gol4ng/logger/testing"
 	"github.com/stretchr/testify/assert"
 
 	http_middleware "github.com/gol4ng/logger-http/middleware"
@@ -26,10 +27,7 @@ func TestCorrelationId(t *testing.T) {
 		rand.New(correlation_id.NewLockedSource(rand.NewSource(1))),
 	)
 
-	loggerOutput := &Output{}
-	myLogger := logger.NewLogger(
-		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
-	)
+	myLogger, store := testing_logger.NewLogger()
 
 	request := httptest.NewRequest(http.MethodGet, "http://fake-addr", nil)
 	request = request.WithContext(logger.InjectInContext(request.Context(), myLogger))
@@ -41,12 +39,12 @@ func TestCorrelationId(t *testing.T) {
 		assert.NotEqual(t, request, innerRequest)
 		assert.Equal(t, "p1LGIehp1s", innerRequest.Header.Get(correlation_id.HeaderName))
 		handlerRequest = innerRequest
-		logger.FromContext(innerRequest.Context(), nil).Info("handler info log", nil)
+		logger.FromContext(innerRequest.Context(), nil).Info("handler info log")
 	})
 
-	myLogger.Info("info log before request", logger.NewContext().Add("ctxvalue", "before"))
+	myLogger.Info("info log before request", logger.String("ctxvalue", "before"))
 	http_middleware.CorrelationId()(h).ServeHTTP(responseWriter, request)
-	myLogger.Info("info log after request", logger.NewContext().Add("ctxvalue", "after"))
+	myLogger.Info("info log after request", logger.String("ctxvalue", "after"))
 
 	respHeaderValue := responseWriter.Header().Get(correlation_id.HeaderName)
 	reqContextValue := handlerRequest.Context().Value(correlation_id.HeaderName).(string)
@@ -54,11 +52,24 @@ func TestCorrelationId(t *testing.T) {
 	assert.True(t, len(respHeaderValue) == 10)
 	assert.True(t, len(reqContextValue) == 10)
 	assert.True(t, respHeaderValue == reqContextValue)
-	loggerOutput.Constains(t, []string{
-		`<info> info log before request {"ctxvalue":"before"}`,
-		`<info> handler info log {"Correlation-Id":"p1LGIehp1s"}`,
-		`<info> info log after request {"ctxvalue":"after"}`,
-	})
+
+	entries := store.GetEntries()
+	assert.Len(t, entries, 3)
+
+	entry1 := entries[0]
+	assert.Equal(t, logger.InfoLevel, entry1.Level)
+	assert.Equal(t, "info log before request", entry1.Message)
+	assert.Equal(t, "before", (*entry1.Context)["ctxvalue"].Value)
+
+	entry2 := entries[1]
+	assert.Equal(t, logger.InfoLevel, entry2.Level)
+	assert.Equal(t, "handler info log", entry2.Message)
+	assert.Equal(t, "p1LGIehp1s", (*entry2.Context)["Correlation-Id"].Value)
+
+	entry3 := entries[2]
+	assert.Equal(t, logger.InfoLevel, entry3.Level)
+	assert.Equal(t, "info log after request", entry3.Message)
+	assert.Equal(t, "after", (*entry3.Context)["ctxvalue"].Value)
 }
 
 func TestCorrelationId_WithoutWrappableLogger(t *testing.T) {
@@ -66,10 +77,7 @@ func TestCorrelationId_WithoutWrappableLogger(t *testing.T) {
 		rand.New(correlation_id.NewLockedSource(rand.NewSource(1))),
 	)
 
-	loggerOutput := &Output{}
-	myLogger := logger.NewLogger(
-		handler.Stream(loggerOutput, formatter.NewDefaultFormatter()),
-	)
+	myLogger, store := testing_logger.NewLogger()
 
 	request := httptest.NewRequest(http.MethodGet, "http://fake-addr", nil)
 	// WE DO NOT INJECT LOGGER IN REQUEST CONTEXT
@@ -85,11 +93,11 @@ func TestCorrelationId_WithoutWrappableLogger(t *testing.T) {
 		assert.Nil(t, logger.FromContext(innerRequest.Context(), nil))
 	})
 
-	myLogger.Info("info log before request", logger.NewContext().Add("ctxvalue", "before"))
+	myLogger.Info("info log before request", logger.String("ctxvalue", "before"))
 	output := getStdout(func() {
 		http_middleware.CorrelationId()(h).ServeHTTP(responseRecorder, request)
 	})
-	myLogger.Info("info log after request", logger.NewContext().Add("ctxvalue", "after"))
+	myLogger.Info("info log after request", logger.String("ctxvalue", "after"))
 
 	respHeaderValue := responseRecorder.Header().Get(correlation_id.HeaderName)
 	reqContextValue := handlerRequest.Context().Value(correlation_id.HeaderName).(string)
@@ -100,10 +108,18 @@ func TestCorrelationId_WithoutWrappableLogger(t *testing.T) {
 	assert.Contains(t, output, "correlationId need a wrappable logger /")
 	assert.Contains(t, output, "/src/github.com/gol4ng/logger-http/middleware/correlation_id_test.go:")
 
-	loggerOutput.Constains(t, []string{
-		`<info> info log before request {"ctxvalue":"before"}`,
-		`<info> info log after request {"ctxvalue":"after"}`,
-	})
+	entries := store.GetEntries()
+	assert.Len(t, entries, 2)
+
+	entry1 := entries[0]
+	assert.Equal(t, logger.InfoLevel, entry1.Level)
+	assert.Equal(t, "info log before request", entry1.Message)
+	assert.Equal(t, "before", (*entry1.Context)["ctxvalue"].Value)
+
+	entry2 := entries[1]
+	assert.Equal(t, logger.InfoLevel, entry2.Level)
+	assert.Equal(t, "info log after request", entry2.Message)
+	assert.Equal(t, "after", (*entry2.Context)["ctxvalue"].Value)
 }
 
 // Use to get os.Stdout
@@ -147,7 +163,7 @@ func ExampleCorrelationId() {
 	port := ":5001"
 
 	myLogger := logger.NewLogger(
-		handler.Stream(os.Stdout, formatter.NewDefaultFormatter()),
+		handler.Stream(os.Stdout, formatter.NewDefaultFormatter(formatter.WithContext(true))),
 	)
 
 	// we recommend to use MiddlewareStack to simplify managing all wanted middlewares
@@ -164,7 +180,7 @@ func ExampleCorrelationId() {
 
 	h := http.HandlerFunc(func(writer http.ResponseWriter, innerRequest *http.Request) {
 		l := logger.FromContext(innerRequest.Context(), myLogger)
-		l.Info("handler log info", nil)
+		l.Info("handler log info")
 	})
 
 	go func() {
