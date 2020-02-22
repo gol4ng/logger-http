@@ -163,7 +163,7 @@ func ExampleCorrelationId() {
 	port := ":5001"
 
 	myLogger := logger.NewLogger(
-		handler.Stream(os.Stdout, formatter.NewDefaultFormatter()),
+		handler.Stream(os.Stdout, formatter.NewDefaultFormatter(formatter.WithContext(true))),
 	)
 
 	// we recommend to use MiddlewareStack to simplify managing all wanted middlewares
