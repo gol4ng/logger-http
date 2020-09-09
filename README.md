@@ -33,7 +33,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/gol4ng/httpware/v2"
+	"github.com/gol4ng/httpware/v3"
 	"github.com/gol4ng/logger"
 	"github.com/gol4ng/logger-http/tripperware"
 	"github.com/gol4ng/logger/formatter"
@@ -79,7 +79,7 @@ package main
      	"net/http"
      	"os"
      
-     	"github.com/gol4ng/httpware/v2"
+     	"github.com/gol4ng/httpware/v3"
      	"github.com/gol4ng/logger"
      	"github.com/gol4ng/logger-http/middleware"
      	"github.com/gol4ng/logger/formatter"

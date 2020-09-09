@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gol4ng/httpware/v2"
-	"github.com/gol4ng/httpware/v2/correlation_id"
-	http_tripperware "github.com/gol4ng/httpware/v2/tripperware"
+	"github.com/gol4ng/httpware/v3"
+	"github.com/gol4ng/httpware/v3/correlation_id"
+	http_tripperware "github.com/gol4ng/httpware/v3/tripperware"
 	"github.com/gol4ng/logger"
 	"github.com/gol4ng/logger/middleware"
 
