@@ -15,6 +15,8 @@ github.com/go-stack/stack v1.8.0/go.mod h1:v0f6uXyyMGvRgIKkXu+yp6POWl0qKG85gN/me
 github.com/gogo/protobuf v1.1.1/go.mod h1:r8qH/GZQm5c6nD/R0oafs1akxWv10x8SbQlK7atdtwQ=
 github.com/gol4ng/httpware/v2 v2.1.1 h1:8xd4iN+6e/xjBSy8jjF2Vm8/PvxswJznu8GdaNu+vs8=
 github.com/gol4ng/httpware/v2 v2.1.1/go.mod h1:SIOrsksHg+ydQWikEj5KUVANB4lmwB8c5/NIBtdVzFM=
+github.com/gol4ng/httpware/v3 v3.0.0 h1:kubsxU1GAQaipgnaYZqvB9wtjvXDcP4evbEhSANd7fI=
+github.com/gol4ng/httpware/v3 v3.0.0/go.mod h1:qGWpQuhPcx3ej/fADomrfv96eVyIQyB6NfVaX4Gi5fs=
 github.com/gol4ng/logger v0.5.3 h1:gX9fX5Ke1c9ldyIkbHBVux3EJ73FsPsmzWnXT8LEsTo=
 github.com/gol4ng/logger v0.5.3/go.mod h1:RU2axpKm//DmUGqQNIhXmUBHKeLdtWarxu8bSV+5b4Y=
 github.com/golang/mock v1.4.0 h1:Rd1kQnQu0Hq3qvJppYSG0HtP+f5LPPUiDswTLiEegLg=

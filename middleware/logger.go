@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gol4ng/httpware/v2"
-	http_middleware "github.com/gol4ng/httpware/v2/middleware"
+	"github.com/gol4ng/httpware/v3"
+	http_middleware "github.com/gol4ng/httpware/v3/middleware"
 	"github.com/gol4ng/logger"
 
 	"github.com/gol4ng/logger-http"
