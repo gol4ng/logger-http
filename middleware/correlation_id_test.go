@@ -11,8 +11,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gol4ng/httpware/v3"
-	"github.com/gol4ng/httpware/v3/correlation_id"
+	"github.com/gol4ng/httpware/v4"
+	"github.com/gol4ng/httpware/v4/correlation_id"
 	"github.com/gol4ng/logger"
 	"github.com/gol4ng/logger/formatter"
 	"github.com/gol4ng/logger/handler"

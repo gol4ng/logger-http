@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gol4ng/httpware/v3"
+	"github.com/gol4ng/httpware/v4"
 	"github.com/gol4ng/logger"
 	testing_logger "github.com/gol4ng/logger/testing"
 	"github.com/stretchr/testify/assert"
