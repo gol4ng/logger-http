@@ -49,7 +49,7 @@ func Logger(log logger.LoggerInterface, opts ...logger_http.Option) httpware.Mid
 			}()
 
 			currentLogger.Debug(fmt.Sprintf("http server received %s %s", req.Method, req.URL), *currentLoggerContext.Slice()...)
-			next.ServeHTTP(writerInterceptor, req)
+			next.ServeHTTP(writerInterceptor.ResponseWriter, req)
 		})
 	}
 }
